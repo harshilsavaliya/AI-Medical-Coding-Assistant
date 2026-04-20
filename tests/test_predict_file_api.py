@@ -12,6 +12,22 @@ class StubFileService:
                 }
             ],
             explanation=f"Processed upload: {filename}",
+            review_status="needs_review",
+            extracted_conditions=[
+                {
+                    "name": "diabetes",
+                    "confidence": 0.91,
+                    "evidence": "diabetes",
+                    "mapped_code": "E11",
+                },
+                {
+                    "name": "fatigue",
+                    "confidence": 0.44,
+                    "evidence": "fatigue",
+                    "mapped_code": None,
+                },
+            ],
+            unmatched_conditions=["fatigue"],
         )
 
 
@@ -42,6 +58,8 @@ def test_predict_from_file_success(client, monkeypatch):
     payload = response.json()
     assert payload["codes"][0]["code"] == "E11"
     assert payload["explanation"] == "Processed upload: note.png"
+    assert payload["review_status"] == "needs_review"
+    assert payload["unmatched_conditions"] == ["fatigue"]
 
 
 def test_predict_from_file_rejects_unsupported_type(client, monkeypatch):

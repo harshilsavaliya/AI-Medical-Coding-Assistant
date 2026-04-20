@@ -86,7 +86,7 @@ export default function App() {
       <main className="workspace">
         <section className="intro-panel">
           <div className="eyebrow">AI Medical Coding Assistant</div>
-          <h1>Submit clinical text or upload a document image to generate ICD-10 suggestions.</h1>
+          <h2>Submit clinical text or upload a document image to generate ICD-10 suggestions.</h2>
           <p>
             Choose the input format that matches the case you are reviewing. Both
             routes return the same coding output, confidence values, and explanation.

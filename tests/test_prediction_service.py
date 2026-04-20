@@ -56,6 +56,10 @@ def test_prediction_service_maps_known_conditions():
     assert [code.code for code in response.codes] == ["E11", "I10"]
     assert "Type 2 diabetes mellitus" in response.explanation
     assert "Essential hypertension" in response.explanation
+    assert response.review_status == "auto_suggested"
+    assert response.unmatched_conditions == []
+    assert response.extracted_conditions[0].mapped_code == "E11"
+    assert response.extracted_conditions[1].mapped_code == "I10"
 
 
 def test_prediction_service_deduplicates_codes():
@@ -71,6 +75,8 @@ def test_prediction_service_deduplicates_codes():
 
     assert len(response.codes) == 1
     assert response.codes[0].code == "E11"
+    assert len(response.extracted_conditions) == 2
+    assert all(condition.mapped_code == "E11" for condition in response.extracted_conditions)
 
 
 def test_prediction_service_handles_unknown_terms():
@@ -83,6 +89,9 @@ def test_prediction_service_handles_unknown_terms():
 
     assert response.codes == []
     assert "found no curated ICD-10 match" in response.explanation
+    assert response.review_status == "needs_review"
+    assert response.unmatched_conditions == ["fatigue"]
+    assert response.extracted_conditions[0].mapped_code is None
 
 
 def test_prediction_service_handles_no_conditions():
@@ -93,3 +102,23 @@ def test_prediction_service_handles_no_conditions():
 
     assert response.codes == []
     assert response.explanation == "No clear ICD-10 mappable conditions were identified from the provided text."
+    assert response.review_status == "needs_review"
+    assert response.extracted_conditions == []
+    assert response.unmatched_conditions == []
+
+
+def test_prediction_service_marks_mixed_results_for_review():
+    extractor = StubExtractor(
+        [
+            ExtractedCondition(name="hypertension", confidence=0.88, evidence="hypertension"),
+            ExtractedCondition(name="fatigue", confidence=0.51, evidence="fatigue"),
+        ]
+    )
+    service = PredictionService(extractor=extractor, mapper=build_mapper())
+
+    response = service.predict("Patient has hypertension and fatigue.")
+
+    assert [code.code for code in response.codes] == ["I10"]
+    assert response.review_status == "needs_review"
+    assert response.unmatched_conditions == ["fatigue"]
+    assert "need manual review" in response.explanation

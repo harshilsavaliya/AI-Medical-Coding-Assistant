@@ -6,7 +6,7 @@ from functools import lru_cache
 
 from openai import APIConnectionError, APIError, AuthenticationError
 
-from app.models.schemas import CodePrediction, PredictionResponse
+from app.models.schemas import CodePrediction, ExtractedConditionReview, PredictionResponse
 from app.utils.config import Settings, get_settings
 from ai.mapping.icd_mapper import IcdMapper, get_icd_mapper
 from ai.prompts.extractor import DiagnosisExtractor, ExtractedCondition, get_extractor
@@ -79,14 +79,21 @@ class PredictionService:
                 for condition in extracted_conditions
             ],
         )
-        mapped_codes = self.mapper.map_conditions(extracted_conditions)
+        mapping_result = self.mapper.map_conditions(extracted_conditions)
         logger.info(
             "ICD mapping completed with matched_code_count=%s, matched_codes=%s",
-            len(mapped_codes),
-            [item["code"] for item in mapped_codes],
+            len(mapping_result.codes),
+            [item["code"] for item in mapping_result.codes],
         )
-        logger.info("Detailed ICD mapping output: %s", mapped_codes)
-        explanation = self._build_explanation(extracted_conditions, mapped_codes)
+        logger.info("Detailed ICD mapping output: %s", mapping_result.codes)
+        logger.info("Condition-level mapping output: %s", mapping_result.condition_mappings)
+        logger.info("Unmatched extracted conditions: %s", mapping_result.unmatched_conditions)
+        explanation = self._build_explanation(extracted_conditions, mapping_result.codes)
+        review_status = self._determine_review_status(
+            extracted_conditions=extracted_conditions,
+            mapped_codes=mapping_result.codes,
+            unmatched_conditions=mapping_result.unmatched_conditions,
+        )
         logger.info("Response explanation generated.")
         logger.info("Final explanation text: %s", explanation)
 
@@ -97,9 +104,20 @@ class PredictionService:
                     description=item["description"],
                     confidence=item["confidence"],
                 )
-                for item in mapped_codes
+                for item in mapping_result.codes
             ],
             explanation=explanation,
+            review_status=review_status,
+            extracted_conditions=[
+                ExtractedConditionReview(
+                    name=item["name"],
+                    confidence=item["confidence"],
+                    evidence=item["evidence"],
+                    mapped_code=item["mapped_code"],
+                )
+                for item in mapping_result.condition_mappings
+            ],
+            unmatched_conditions=mapping_result.unmatched_conditions,
         )
 
     @staticmethod
@@ -119,6 +137,11 @@ class PredictionService:
     ) -> str:
         if mapped_codes:
             diagnoses = ", ".join(item["description"] for item in mapped_codes)
+            if len(mapped_codes) < len(extracted_conditions):
+                return (
+                    "Mapped extracted conditions to ICD-10 codes for: "
+                    f"{diagnoses}. Additional extracted conditions need manual review."
+                )
             return f"Mapped extracted conditions to ICD-10 codes for: {diagnoses}."
 
         if extracted_conditions:
@@ -129,6 +152,16 @@ class PredictionService:
             )
 
         return "No clear ICD-10 mappable conditions were identified from the provided text."
+
+    @staticmethod
+    def _determine_review_status(
+        extracted_conditions: list[ExtractedCondition],
+        mapped_codes: list[dict[str, str | float]],
+        unmatched_conditions: list[str],
+    ) -> str:
+        if mapped_codes and not unmatched_conditions and extracted_conditions:
+            return "auto_suggested"
+        return "needs_review"
 
 
 @lru_cache

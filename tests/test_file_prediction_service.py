@@ -21,12 +21,22 @@ class StubPredictionService:
                 }
             ],
             explanation="Mapped extracted conditions to ICD-10 codes for: Essential hypertension.",
+            review_status="auto_suggested",
+            extracted_conditions=[
+                {
+                    "name": "hypertension",
+                    "confidence": 0.88,
+                    "evidence": "hypertension",
+                    "mapped_code": "I10",
+                }
+            ],
+            unmatched_conditions=[],
         )
 
 
 class StubReader:
     def __init__(self, result=None, should_fail: bool = False):
-        self.result = result or ["hypertension"]
+        self.result = ["hypertension"] if result is None else result
         self.should_fail = should_fail
 
     def readtext(self, image, detail=0, paragraph=True):

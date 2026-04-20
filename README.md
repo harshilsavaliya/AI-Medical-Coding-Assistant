@@ -298,12 +298,6 @@ ICD Code Output
 
 ---
 
-# Disclaimer
-
-This project is for educational purposes only and should not be used for real clinical or billing decisions.
-
----
-
 # Author
 
 Harshil Savaliya

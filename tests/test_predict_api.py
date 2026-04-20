@@ -13,6 +13,16 @@ class StubService:
                 }
             ],
             explanation=f"Processed: {text}",
+            review_status="auto_suggested",
+            extracted_conditions=[
+                {
+                    "name": "uncontrolled diabetes",
+                    "confidence": 0.92,
+                    "evidence": "uncontrolled diabetes",
+                    "mapped_code": "E11",
+                }
+            ],
+            unmatched_conditions=[],
         )
 
 
@@ -34,6 +44,9 @@ def test_predict_success(client, monkeypatch):
     payload = response.json()
     assert payload["codes"][0]["code"] == "E11"
     assert payload["explanation"] == "Processed: Patient has uncontrolled diabetes"
+    assert payload["review_status"] == "auto_suggested"
+    assert payload["extracted_conditions"][0]["mapped_code"] == "E11"
+    assert payload["unmatched_conditions"] == []
 
 
 def test_predict_rejects_empty_text(client):

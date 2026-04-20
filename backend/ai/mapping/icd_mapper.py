@@ -11,13 +11,27 @@ from ai.prompts.extractor import ExtractedCondition
 logger = logging.getLogger(__name__)
 
 
+class MappingResult:
+    def __init__(
+        self,
+        codes: list[dict[str, str | float]],
+        condition_mappings: list[dict[str, str | float | None]],
+        unmatched_conditions: list[str],
+    ) -> None:
+        self.codes = codes
+        self.condition_mappings = condition_mappings
+        self.unmatched_conditions = unmatched_conditions
+
+
 class IcdMapper:
     def __init__(self, records: list[dict[str, str]]) -> None:
         self.records = records
 
-    def map_conditions(self, conditions: list[ExtractedCondition]) -> list[dict[str, str | float]]:
+    def map_conditions(self, conditions: list[ExtractedCondition]) -> MappingResult:
         logger.info("Starting ICD mapping for condition_count=%s", len(conditions))
         results: list[dict[str, str | float]] = []
+        condition_mappings: list[dict[str, str | float | None]] = []
+        unmatched_conditions: list[str] = []
         seen_codes: set[str] = set()
 
         for condition in conditions:
@@ -30,20 +44,38 @@ class IcdMapper:
             record = self._find_record(condition.name)
             if not record:
                 logger.info("No ICD match found for extracted_condition=%s", condition.name)
+                unmatched_conditions.append(condition.name)
+                condition_mappings.append(
+                    {
+                        "name": condition.name,
+                        "confidence": condition.confidence,
+                        "evidence": condition.evidence,
+                        "mapped_code": None,
+                    }
+                )
                 continue
 
             code = record["code"]
-            if code in seen_codes:
-                logger.info("Skipping duplicate ICD code=%s for condition=%s", code, condition.name)
-                continue
-
-            seen_codes.add(code)
             logger.info(
                 "Mapped extracted_condition=%s to code=%s description=%s",
                 condition.name,
                 code,
                 record["description"],
             )
+            condition_mappings.append(
+                {
+                    "name": condition.name,
+                    "confidence": condition.confidence,
+                    "evidence": condition.evidence,
+                    "mapped_code": code,
+                }
+            )
+
+            if code in seen_codes:
+                logger.info("Skipping duplicate ICD code=%s for condition=%s", code, condition.name)
+                continue
+
+            seen_codes.add(code)
             results.append(
                 {
                     "code": code,
@@ -52,7 +84,11 @@ class IcdMapper:
                 }
             )
 
-        return results
+        return MappingResult(
+            codes=results,
+            condition_mappings=condition_mappings,
+            unmatched_conditions=unmatched_conditions,
+        )
 
     def _find_record(self, condition_name: str) -> dict[str, str] | None:
         normalized_condition = condition_name.lower()

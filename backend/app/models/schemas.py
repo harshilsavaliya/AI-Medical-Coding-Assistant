@@ -19,6 +19,16 @@ class CodePrediction(BaseModel):
     confidence: float = Field(..., ge=0.0, le=1.0)
 
 
+class ExtractedConditionReview(BaseModel):
+    name: str
+    confidence: float = Field(..., ge=0.0, le=1.0)
+    evidence: str
+    mapped_code: str | None = None
+
+
 class PredictionResponse(BaseModel):
     codes: list[CodePrediction]
     explanation: str
+    review_status: str
+    extracted_conditions: list[ExtractedConditionReview]
+    unmatched_conditions: list[str]
