@@ -145,6 +145,39 @@ Patient presents with uncontrolled diabetes and hypertension.
   "explanation": "Identified keywords 'diabetes' and 'hypertension' from clinical text."
 }
 ```
+![Text input workflow screenshot](docs/images/text-input-workflow.png)
+
+## Frontend Text Review Flow
+
+The text workflow in the frontend is designed for copied notes, summaries, or typed diagnoses.
+
+Flow:
+
+1. Open the `Text Input` tab.
+2. Paste clinical text into the textarea.
+3. Click `Analyze Text`.
+4. Review the result panel on the right side.
+
+The result panel currently shows:
+
+- mapped ICD-10 code cards
+- confidence percentages
+- an `Auto Suggested` or `Needs Review` badge
+- extracted-condition evidence cards
+- unmatched conditions when manual follow-up is required
+
+Example text used in the UI:
+
+```text
+Patient presents with uncontrolled diabetes, hypertension, and chronic cough.
+```
+
+Expected review outcome from that example:
+
+- `E11` for Type 2 diabetes mellitus
+- `I10` for Essential hypertension
+- `R05` for Chronic cough
+- extracted-condition traceability for each matched term
 
 ## Backend Components
 
@@ -249,7 +282,7 @@ The frontend currently supports:
 - A tabbed interface with `Text Input` and `File Upload`
 - Text submissions against `POST /predict`
 - Image uploads against `POST /predict-from-file`
-- Shared result rendering for codes and explanations
+- Shared result rendering for codes, explanations, and reviewer metadata
 
 ## File Upload Workflow
 
@@ -267,7 +300,45 @@ Text Prediction Pipeline
 ICD Code Output
 ```
 
----
+![File upload workflow screenshot](docs/images/file-upload-workflow.png)
+
+## Frontend File Upload Review Flow
+
+The file workflow is intended for screenshots, scanned notes, and image-based medical documents.
+
+Flow:
+
+1. Open the `File Upload` tab.
+2. Choose a supported image file: `JPG`, `JPEG`, or `PNG`.
+3. Click `Upload and Analyze`.
+4. Let the backend extract OCR text and run the same prediction service used by the text flow.
+5. Review the coding results and extracted-condition details in the shared results panel.
+
+What the file result view highlights:
+
+- mapped ICD-10 code cards for recognized diagnoses
+- the review-status badge
+- extracted conditions with evidence text
+- the mapped ICD code for each extracted condition when available
+
+Example file workflow outcome shown in the UI:
+
+- uploaded image: discharge-summary-style asthma/cough note
+- mapped result: `J45` for Asthma
+- mapped result: `R05` for Chronic cough
+- extracted review items such as `bronchial asthma` and `persistent cough`
+
+## Unified Reviewer Experience
+
+Both input modes feed into the same backend response contract, so the frontend presents a consistent review experience:
+
+- same results panel layout
+- same ICD code cards
+- same explanation area
+- same extracted-condition traceability
+- same manual-review signaling
+
+This makes it easier for a coder or reviewer to switch between direct note entry and uploaded-image analysis without learning two different result views.
 
 # Evaluation Metrics
 
